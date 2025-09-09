@@ -1,0 +1,96 @@
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ancestry Analyzer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f0f4f8; }
+        h1 { color: #2c3e50; }
+        input, button { margin: 10px; padding: 12px; font-size: 16px; border-radius: 5px; }
+        button { background-color: #3498db; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #2980b9; }
+        video { border: 2px solid #ccc; margin: 10px; border-radius: 5px; }
+        #result { margin-top: 20px; font-size: 18px; background-color: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        p.note { color: #7f8c8d; font-size: 14px; margin-top: 10px; }
+        .error { color: red; font-size: 16px; margin-top: 10px; }
+        @media (max-width: 600px) {
+            video { width: 100%; height: auto; }
+            input, button { width: 90%; }
+        }
+    </style>
+</head>
+<body>
+    <h1>上传或拍摄照片</h1>
+    <input type="file" id="fileInput" accept="image/*">
+    <button onclick="upload()">上传</button>
+    <video id="video" width="320" height="240" autoplay></video>
+    <button onclick="capture()">拍摄照片</button>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="result"></div>
+    <p class="note">注：结果为广义祖源分类，可能包含多种子群体（例如，亚洲包括东亚、南亚等）。</p>
+    <div id="error" class="error"></div>
+    <script>
+        function upload() {
+            var file = document.getElementById('fileInput').files[0];
+            var errorDiv = document.getElementById('error');
+            errorDiv.innerText = '';
+            if (!file) {
+                errorDiv.innerText = '请先选择一张图片！';
+                return;
+            }
+            var formData = new FormData();
+            formData.append('file', file);
+            fetch('/analyze', {method: 'POST', body: formData})
+                .then(response => {
+                    if (!response.ok) throw new Error('分析失败，请确保图片包含人脸！');
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('result').innerHTML = Object.entries(data).map(([key, value]) => key + ': ' + value.toFixed(2) + '%').join('<br>');
+                })
+                .catch(error => {
+                    errorDiv.innerText = error.message;
+                });
+        }
+        function capture() {
+            var errorDiv = document.getElementById('error');
+            errorDiv.innerText = '';
+            navigator.mediaDevices.getUserMedia({video: true})
+                .then(stream => {
+                    document.getElementById('video').srcObject = stream;
+                })
+                .catch(error => {
+                    errorDiv.innerText = '无法访问摄像头，请检查权限！';
+                    console.error(error);
+                });
+            setTimeout(() => {
+                var canvas = document.getElementById('canvas');
+                canvas.width = 320;
+                canvas.height = 240;
+                canvas.getContext('2d').drawImage(document.getElementById('video'), 0, 0, 320, 240);
+                canvas.toBlob(blob => {
+                    if (!blob) {
+                        errorDiv.innerText = '拍摄失败，请重试！';
+                        return;
+                    }
+                    var formData = new FormData();
+                    formData.append('file', blob, 'capture.jpg');
+                    fetch('/analyze', {method: 'POST', body: formData})
+                        .then(response => {
+                            if (!response.ok) throw new Error('分析失败，请确保照片包含人脸！');
+                            return response.json();
+                        })
+                        .then(data => {
+                            document.getElementById('result').innerHTML = Object.entries(data).map(([key, value]) => key + ': ' + value.toFixed(2) + '%').join('<br>');
+                        })
+                        .catch(error => {
+                            errorDiv.innerText = error.message;
+                        });
+                });
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
+```
