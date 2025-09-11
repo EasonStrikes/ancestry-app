@@ -10,7 +10,7 @@ def index():
 def analyze():
     file = request.files['file']
     file.save('upload.jpg')
-    result = DeepFace.analyze('upload.jpg', actions=['race'])
+    result = DeepFace.analyze('upload.jpg', actions=['race'], models={'race': 'race_model_single_batch.h5'})
     return jsonify(result[0]['race'])
 
 if __name__ == '__main__':
